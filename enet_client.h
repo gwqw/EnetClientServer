@@ -12,11 +12,15 @@
 
 class EnetClient {
 public:
-    explicit EnetClient(const std::string& host_name, int port);
+    EnetClient() = default;
+    EnetClient(const std::string& host_name, int port);
     EnetClient(const EnetClient&) = delete;
     EnetClient& operator=(const EnetClient&) = delete;
     ~EnetClient();
 
+    bool connect(const std::string& host_name, int port);
+    void reconnect();
+    bool isConnected() const {return peer != nullptr;}
     void sendText(const std::string& data);
     void sendData(const std::vector<int>& data);
 private:

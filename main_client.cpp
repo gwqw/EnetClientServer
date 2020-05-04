@@ -7,12 +7,25 @@
 using namespace std;
 
 int main() {
-    EnetClient client("localhost", 9000);
-    cout << "Input cmd:\n";
-    for (string line; getline(cin, line); ) {
-        client.sendText(line);
+    if (enet_initialize() != 0) {
+        cerr << "An error occurred while initializing ENet.\n";
+        return EXIT_FAILURE;
     }
-
-    std::cout << "Hello, World!" << std::endl;
-    return 0;
+    atexit (enet_deinitialize);
+    try {
+        EnetClient client;
+        if (client.connect("localhost", 9000)) {
+            cout << "Connection to " << "localhost" << " succeeded.\n";
+        }
+        cout << "Input cmd:\n";
+        for (string line; getline(cin, line);) {
+            client.sendText(line);
+            int n = stoi(line);
+            client.sendData({n});
+        }
+        return 0;
+    } catch (const std::exception& e) {
+        cerr << e.what() << endl;
+        return EXIT_FAILURE;
+    }
 }
