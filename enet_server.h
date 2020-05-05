@@ -1,6 +1,8 @@
-//
-// Created by gw on 30.04.2020.
-//
+/**
+ * @file enet_server.h
+ * @author gw
+ * @brief Enet server realization, it can receive data by reliable channel and unreliable
+*/
 #pragma once
 #ifndef ENET_TEST_ENET_SERVER_H
 #define ENET_TEST_ENET_SERVER_H
@@ -22,10 +24,6 @@ using TextCallbackFn = std::function<void(const std::string&)>;
 using DataCallbackFn = std::function<void(const std::vector<std::uint8_t>&)>;
 
 class EnetServer {
-    struct Task {
-        ChannelType channel;
-        std::vector<uint8_t> data;
-    };
 public:
     // ctor && dtor
     explicit EnetServer(int port_num, std::size_t max_peer_number);
@@ -51,8 +49,6 @@ private:
 
     void do_accept();
 };
-
-
 
 #endif //ENET_TEST_ENET_SERVER_H
 

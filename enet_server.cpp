@@ -1,12 +1,8 @@
-//
-// Created by gw on 30.04.2020.
-//
 #include "enet_server.h"
 
 #include <stdexcept>
 #include <iostream>
 #include <utility>
-#include <cstring>
 
 using namespace std;
 
@@ -55,16 +51,18 @@ void EnetServer::do_accept() {
                     cerr << "A packet of length " << event.packet->dataLength
                          << " was received from " << event.peer->data
                          << " on channel " << int(event.channelID) << endl;
-                    if (event.channelID == RELIABLE_CHANNEL) {
-                        string data(event.packet->dataLength, '\0');
-                        copy(event.packet->data, event.packet->data + event.packet->dataLength, data.begin());
+                    if (event.channelID == RELIABLE_CHANNEL && text_func) {
+                        string data(reinterpret_cast<char*>(event.packet->data), event.packet->dataLength);
+                        event.packet->data = nullptr;
+                        event.packet->dataLength = 0;
                         auto wrk_fnc = [this](string data){
                             text_func(data);
                         };
                         string_thread_pool.addTask(wrk_fnc, move(data));
-                    } else { // UNRELIABLE_CHANNEL
-                        vector<uint8_t> data(event.packet->dataLength);
-                        memcpy((void*)data.data(), (void*)event.packet->data, event.packet->dataLength);
+                    } else if (event.channelID == UNRELIABLE_CHANNEL && data_func) {
+                        vector<uint8_t> data(event.packet->data, event.packet->data + event.packet->dataLength);
+                        event.packet->data = nullptr;
+                        event.packet->dataLength = 0;
                         auto wrk_fnc = [this](vector<uint8_t> data){
                             data_func(data);
                         };
@@ -74,7 +72,7 @@ void EnetServer::do_accept() {
                     enet_packet_destroy(event.packet);
                     break;
                 case ENET_EVENT_TYPE_DISCONNECT:
-                    cout << "disconnected." << endl;
+                    cerr << "disconnected." << endl;
                     /* Reset the peer's client information. */
                     event.peer->data = nullptr;
                 default:

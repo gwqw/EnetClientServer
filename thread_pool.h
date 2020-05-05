@@ -1,3 +1,8 @@
+/**
+ * @file thread_pool.h
+ * @author gw
+ * @brief Thread pool realization
+*/
 #pragma once
 
 #include <future>
