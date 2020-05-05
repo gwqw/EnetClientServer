@@ -12,7 +12,7 @@
 
 class EnetClient {
 public:
-    EnetClient() = default;
+    EnetClient();
     EnetClient(const std::string& host_name, int port);
     EnetClient(const EnetClient&) = delete;
     EnetClient& operator=(const EnetClient&) = delete;

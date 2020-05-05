@@ -8,11 +8,16 @@
 
 using namespace std;
 
-EnetClient::EnetClient(const std::string& host_name, int port) {
+EnetClient::EnetClient() {
     client = enet_host_create(nullptr, 1, 2, 0, 0);
     if (client == nullptr) {
         throw runtime_error("Cannot create client");
     }
+}
+
+EnetClient::EnetClient(const std::string& host_name, int port)
+    : EnetClient()
+{
     connect(host_name, port);
 }
 
@@ -65,7 +70,7 @@ EnetClient::~EnetClient() {
                 enet_packet_destroy(event.packet);
                 break;
             case ENET_EVENT_TYPE_DISCONNECT:
-                cout << "Disconnection succeeded." << endl;
+                cerr << "Disconnection succeeded." << endl;
                 is_disconnected = true;
                 break;
         }
@@ -92,5 +97,6 @@ void EnetClient::sendData(const vector<int> &data) {
     enet_peer_send(peer, CHANNEL_ID, packet);
     enet_host_flush(client);
 }
+
 
 

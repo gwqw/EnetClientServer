@@ -9,13 +9,17 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <atomic>
+#include <thread>
+
+#include "thread_pool.h"
 
 enum ChannelType {
-    TEXT_TYPE_CHANNEL,  // reliable channel for text
-    DATA_TYPE_CHANNEL}; // unreliable channel for data
+    RELIABLE_CHANNEL,    // reliable channel for text
+    UNRELIABLE_CHANNEL}; // unreliable channel for data
 
 using TextCallbackFn = std::function<void(const std::string&)>;
-using DataCallbackFn = std::function<void(const std::vector<int>&)>;
+using DataCallbackFn = std::function<void(const std::vector<std::uint8_t>&)>;
 
 class EnetServer {
     struct Task {
@@ -39,6 +43,11 @@ private:
     ENetHost* server = nullptr;
     TextCallbackFn text_func;
     DataCallbackFn data_func;
+    std::atomic<bool> stop_flag{false};
+    std::thread thr;
+
+    ThreadPool string_thread_pool;
+    ThreadPool data_thread_pool;
 
     void do_accept();
 };

@@ -17,7 +17,7 @@ EnetServer::EnetServer(int port_num, std::size_t max_peer_number)
 
 EnetServer::EnetServer(int port_num, std::size_t max_peer_number,
         TextCallbackFn text_func, DataCallbackFn data_func)
-    : text_func(text_func), data_func(data_func)
+    : text_func(move(text_func)), data_func(move(data_func)), string_thread_pool(1), data_thread_pool(1)
 {
     if (port_num <= 0) {
         throw invalid_argument("Bad port number: " + to_string(port_num));
@@ -28,10 +28,12 @@ EnetServer::EnetServer(int port_num, std::size_t max_peer_number,
     if (server == nullptr) {
         throw logic_error("Cannot create server");
     }
-    do_accept();
+    thr = thread(&EnetServer::do_accept, this);
 }
 
 EnetServer::~EnetServer() {
+    stop_flag = true;
+    thr.join();
     if (server != nullptr) {
         enet_host_destroy(server);
     }
@@ -40,27 +42,33 @@ EnetServer::~EnetServer() {
 void EnetServer::do_accept() {
     constexpr int TIME_OUT = 1000;
     ENetEvent event;
-    while (true) {
+    while (!stop_flag) {
         while (enet_host_service(server, &event, TIME_OUT) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
-                    cout << "A new client connected from " << event.peer->address.host
+                    cerr << "A new client connected from " << event.peer->address.host
                          << ':' << event.peer->address.port << endl;
                     /* Store any relevant client information here. */
                     //event.peer->data = "";
                     break;
                 case ENET_EVENT_TYPE_RECEIVE:
-                    cout << "A packet of length " << event.packet->dataLength
+                    cerr << "A packet of length " << event.packet->dataLength
                          << " was received from " << event.peer->data
                          << " on channel " << int(event.channelID) << endl;
-                    if (event.channelID == TEXT_TYPE_CHANNEL) {
+                    if (event.channelID == RELIABLE_CHANNEL) {
                         string data(event.packet->dataLength, '\0');
                         copy(event.packet->data, event.packet->data + event.packet->dataLength, data.begin());
-                        text_func(data);
-                    } else { // DATA_TYPE_CHANNEL
-                        vector<int> data(event.packet->dataLength / sizeof(int));
+                        auto wrk_fnc = [this](string data){
+                            text_func(data);
+                        };
+                        string_thread_pool.addTask(wrk_fnc, move(data));
+                    } else { // UNRELIABLE_CHANNEL
+                        vector<uint8_t> data(event.packet->dataLength);
                         memcpy((void*)data.data(), (void*)event.packet->data, event.packet->dataLength);
-                        data_func(data);
+                        auto wrk_fnc = [this](vector<uint8_t> data){
+                            data_func(data);
+                        };
+                        data_thread_pool.addTask(wrk_fnc, move(data));
                     }
                     /* Clean up the packet now that we're done using it. */
                     enet_packet_destroy(event.packet);
