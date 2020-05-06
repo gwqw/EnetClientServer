@@ -20,14 +20,7 @@ vector<int> getVector(const std::string& str) {
 }
 
 int main(int argc, char* argv[]) {
-    if (enet_initialize() != 0) {
-        cerr << "An error occurred while initializing ENet.\n";
-        return EXIT_FAILURE;
-    }
-    atexit (enet_deinitialize);
-
-    if (argc < 2)
-    {
+    if (argc < 2) {
         std::cerr << "Usage: enet_client <address> [<port>]\n"
                      "Default port number - 9000\n";
         return 1;
@@ -40,15 +33,17 @@ int main(int argc, char* argv[]) {
         }
         EnetClient client;
         if (client.connect(string(argv[1]), port_num)) {
-            cerr << "Connection to " << "localhost" << " succeeded." << endl;
+            cerr << "Connection to " << argv[1] << " succeeded." << endl;
         }
         cout << "Input cmd (ctrl+D -- exit):\n";
         for (string line; getline(cin, line);) {
             if (line.size() > 2 && line[0] == 's' && line[1] == ':') {
-                client.sendText(line.substr(2));
+                cout << boolalpha <<
+                    client.sendText(line.substr(2)) << endl;
             } else {
                 auto v = getVector(line);
-                client.sendData(v);
+                cout << boolalpha <<
+                    client.sendData(v) << endl;
             }
         }
         return 0;

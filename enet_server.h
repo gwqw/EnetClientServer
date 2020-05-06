@@ -24,6 +24,10 @@ using TextCallbackFn = std::function<void(const std::string&)>;
 using DataCallbackFn = std::function<void(const std::vector<std::uint8_t>&)>;
 
 class EnetServer {
+    struct EnetLibWrapper {
+        EnetLibWrapper();
+        ~EnetLibWrapper();
+    };
 public:
     // ctor && dtor
     explicit EnetServer(int port_num, std::size_t max_peer_number);
@@ -46,6 +50,8 @@ private:
 
     ThreadPool string_thread_pool;
     ThreadPool data_thread_pool;
+
+    static EnetLibWrapper enetLibWrapper;
 
     void do_accept();
 };

@@ -25,13 +25,7 @@ void print_data(const std::vector<std::uint8_t>& data) {
 }
 
 int main(int argc, char* argv[]) {
-    if (enet_initialize() != 0) {
-        cerr << "An error occurred while initializing ENet.\n";
-        return EXIT_FAILURE;
-    }
-    atexit (enet_deinitialize);
-    if (argc < 2)
-    {
+    if (argc < 2) {
         std::cerr << "Usage: enet_server <port>\n";
         return 1;
     }
@@ -46,6 +40,6 @@ int main(int argc, char* argv[]) {
         return 0;
     } catch (const exception& e) {
         cerr << e.what() << endl;
-        return -1;
+        return EXIT_FAILURE;
     }
 }

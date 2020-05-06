@@ -4,7 +4,23 @@
 #include <iostream>
 #include <utility>
 
+#include "print_ip.h"
+
 using namespace std;
+
+EnetServer::EnetLibWrapper EnetServer::enetLibWrapper;
+
+EnetServer::EnetLibWrapper::EnetLibWrapper() {
+    if (enet_initialize() != 0) {
+        cerr << "enet_initialize is failed" << endl;
+        throw runtime_error("enet_initialize is failed");
+    }
+}
+
+EnetServer::EnetLibWrapper::~EnetLibWrapper() {
+    enet_deinitialize();
+}
+
 
 EnetServer::EnetServer(int port_num, std::size_t max_peer_number)
     : EnetServer(port_num, max_peer_number, nullptr, nullptr)
@@ -42,8 +58,9 @@ void EnetServer::do_accept() {
         while (enet_host_service(server, &event, TIME_OUT) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
-                    cerr << "A new client connected from " << event.peer->address.host
-                         << ':' << event.peer->address.port << endl;
+                    cerr << "A new client connected from ";
+                    print_ip(cerr, event.peer->address.host);
+                    cerr << ':' << event.peer->address.port << endl;
                     /* Store any relevant client information here. */
                     //event.peer->data = "";
                     break;
