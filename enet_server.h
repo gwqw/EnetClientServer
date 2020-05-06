@@ -17,8 +17,8 @@
 #include "thread_pool.h"
 
 enum ChannelType {
-    RELIABLE_CHANNEL,    // reliable channel for text
-    UNRELIABLE_CHANNEL}; // unreliable channel for data
+    RELIABLE_CHANNEL,    ///< reliable channel for text
+    UNRELIABLE_CHANNEL}; ///< unreliable channel for data
 
 using TextCallbackFn = std::function<void(const std::string&)>;
 using DataCallbackFn = std::function<void(const std::vector<std::uint8_t>&)>;

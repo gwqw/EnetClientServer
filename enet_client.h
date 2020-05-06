@@ -34,7 +34,7 @@ public:
 private:
     ENetHost *client = nullptr;
     ENetAddress address;
-    ENetPeer *peer = nullptr;
+    std::atomic<ENetPeer*> peer{nullptr};
     std::atomic<bool> stop_flag{false};
     std::thread thr;
     static EnetLibWrapper enetLibWrapper;

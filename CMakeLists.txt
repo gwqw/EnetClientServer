@@ -7,7 +7,7 @@ find_package(Threads REQUIRED)
 
 set(COMMON_SRC thread_pool.cpp thread_pool.h)
 set(ENET_SERVER_SRC main_server.cpp enet_server.cpp enet_server.h ${COMMON_SRC} print_ip.cpp print_ip.h)
-set(ENET_CLIENT_SRC main_client.cpp enet_client.cpp enet_client.h)
+set(ENET_CLIENT_SRC main_client.cpp enet_client.cpp enet_client.h print_ip.cpp print_ip.h)
 
 add_executable(enet_server ${ENET_SERVER_SRC})
 add_executable(enet_client ${ENET_CLIENT_SRC})

@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <iostream>
 
+#include "print_ip.h"
+
 using namespace std;
 
 EnetClient::EnetLibWrapper EnetClient::enetLibWrapper;
@@ -51,12 +53,12 @@ bool EnetClient::connect(const string &host_name, int port) {
         return true;
     } else {
         enet_peer_reset(peer);
+        peer = nullptr;
         return false;
     }
 }
 
 void EnetClient::reconnect() {
-    if (peer) enet_peer_disconnect(peer, 0);
     peer = enet_host_connect(client, &address, 2, 0);
     if (peer == nullptr) {
         return;
@@ -66,27 +68,29 @@ void EnetClient::reconnect() {
     constexpr int CONNECTION_TIMEOUT = 2000;
     if (!(enet_host_service(client, &event, CONNECTION_TIMEOUT) > 0 && event.type == ENET_EVENT_TYPE_CONNECT)) {
         enet_peer_reset(peer);
+        peer = nullptr;
     }
 }
 
 EnetClient::~EnetClient() {
     stop_flag = true;
     thr.join();
-    enet_peer_disconnect(peer, 0); // gently disconnection
-    ENetEvent event;
-    constexpr int DISCONNECTION_TIMEOUT = 2000;
-    bool is_disconnected = false;
-    while (enet_host_service(client, &event, DISCONNECTION_TIMEOUT) > 0)
-    {
-        if (is_disconnected) break;
-        switch (event.type) {
-            case ENET_EVENT_TYPE_RECEIVE:
-                enet_packet_destroy(event.packet);
-                break;
-            case ENET_EVENT_TYPE_DISCONNECT:
-                cerr << "Disconnection succeeded." << endl;
-                is_disconnected = true;
-                break;
+    if (peer) {
+        enet_peer_disconnect(peer, 0); // gently disconnection
+        ENetEvent event;
+        constexpr int DISCONNECTION_TIMEOUT = 2000;
+        bool is_disconnected = false;
+        while (enet_host_service(client, &event, DISCONNECTION_TIMEOUT) > 0) {
+            if (is_disconnected) break;
+            switch (event.type) {
+                case ENET_EVENT_TYPE_RECEIVE:
+                    enet_packet_destroy(event.packet);
+                    break;
+                case ENET_EVENT_TYPE_DISCONNECT:
+                    cerr << "Disconnection succeeded." << endl;
+                    is_disconnected = true;
+                    break;
+            }
         }
     }
     enet_host_destroy(client);
@@ -101,6 +105,9 @@ void EnetClient::do_accept() {
                 case ENET_EVENT_TYPE_CONNECT:
                     cerr << "A new client connected from " << event.peer->address.host
                          << ':' << event.peer->address.port << endl;
+                    cerr << "Connected to server ";
+                    print_ip(cerr, event.peer->address.host);
+                    cerr << ':' << event.peer->address.port << endl;
                     /* Store any relevant client information here. */
                     //event.peer->data = "";
                     break;
@@ -116,6 +123,7 @@ void EnetClient::do_accept() {
                     /* Reset the peer's client information. */
                     event.peer->data = nullptr;
                     peer = nullptr;
+                    break;
                 default:
                     break;
             }
@@ -125,6 +133,7 @@ void EnetClient::do_accept() {
 
 bool EnetClient::sendText(const string &data) {
     if (!peer) reconnect();
+    if (!peer) return false;
     constexpr int CHANNEL_ID = 0;
     ENetPacket* packet = enet_packet_create(
             data.c_str(),           // package
@@ -137,6 +146,7 @@ bool EnetClient::sendText(const string &data) {
 
 bool EnetClient::sendData(const vector<int> &data) {
     if (!peer) reconnect();
+    if (!peer) return false;
     constexpr int CHANNEL_ID = 1;
     ENetPacket* packet = enet_packet_create(
             data.data(),                // package

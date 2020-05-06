@@ -38,7 +38,7 @@ EnetServer::EnetServer(int port_num, std::size_t max_peer_number,
     address.port = port_num;
     server = enet_host_create(&address, max_peer_number, 2, 0, 0);
     if (server == nullptr) {
-        throw logic_error("Cannot create server");
+        throw runtime_error("Cannot create server");
     }
     thr = thread(&EnetServer::do_accept, this);
 }
@@ -46,9 +46,7 @@ EnetServer::EnetServer(int port_num, std::size_t max_peer_number,
 EnetServer::~EnetServer() {
     stop_flag = true;
     thr.join();
-    if (server != nullptr) {
-        enet_host_destroy(server);
-    }
+    enet_host_destroy(server);
 }
 
 void EnetServer::do_accept() {
@@ -92,6 +90,7 @@ void EnetServer::do_accept() {
                     cerr << "disconnected." << endl;
                     /* Reset the peer's client information. */
                     event.peer->data = nullptr;
+                    break;
                 default:
                     break;
             }
