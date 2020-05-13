@@ -50,10 +50,9 @@ EnetServer::~EnetServer() {
 }
 
 void EnetServer::do_accept() {
-    constexpr int TIME_OUT = 1000;
     ENetEvent event;
     while (!stop_flag) {
-        while (enet_host_service(server, &event, TIME_OUT) > 0) {
+        while (enet_host_service(server, &event, accept_timeout_) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
                     cerr << "A new client connected from ";
@@ -63,14 +62,13 @@ void EnetServer::do_accept() {
                     //event.peer->data = "";
                     break;
                 case ENET_EVENT_TYPE_RECEIVE:
-                    cerr << "A packet of length " << event.packet->dataLength
-                         << " was received from " << event.peer->data
-                         << " on channel " << int(event.channelID) << endl;
+//                    cerr << "A packet of length " << event.packet->dataLength
+//                         << " was received on channel " << int(event.channelID) << endl;
                     if (event.channelID == RELIABLE_CHANNEL && text_func) {
                         string data(reinterpret_cast<char*>(event.packet->data), event.packet->dataLength);
                         event.packet->data = nullptr;
                         event.packet->dataLength = 0;
-                        auto wrk_fnc = [this](string data){
+                        auto wrk_fnc = [this](string&& data){
                             text_func(data);
                         };
                         string_thread_pool.addTask(wrk_fnc, move(data));
@@ -78,7 +76,7 @@ void EnetServer::do_accept() {
                         vector<uint8_t> data(event.packet->data, event.packet->data + event.packet->dataLength);
                         event.packet->data = nullptr;
                         event.packet->dataLength = 0;
-                        auto wrk_fnc = [this](vector<uint8_t> data){
+                        auto wrk_fnc = [this](vector<uint8_t>&& data){
                             data_func(data);
                         };
                         data_thread_pool.addTask(wrk_fnc, move(data));

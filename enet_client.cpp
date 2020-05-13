@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <thread>
+#include <chrono>
 
 #include "print_ip.h"
 
@@ -47,9 +49,9 @@ bool EnetClient::connect(const string &host_name, int port) {
         return false;
     }
 
-    ENetEvent event;
     constexpr int CONNECTION_TIMEOUT = 2000;
-    if (enet_host_service(client, &event, CONNECTION_TIMEOUT) > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
+    this_thread::sleep_for(chrono::milliseconds(CONNECTION_TIMEOUT));
+    if (is_connected) {
         return true;
     } else {
         enet_peer_reset(peer);
@@ -64,9 +66,9 @@ void EnetClient::reconnect() {
         return;
     }
 
-    ENetEvent event;
-    constexpr int CONNECTION_TIMEOUT = 2000;
-    if (!(enet_host_service(client, &event, CONNECTION_TIMEOUT) > 0 && event.type == ENET_EVENT_TYPE_CONNECT)) {
+    constexpr int CONNECTION_TIMEOUT = 1000;
+    this_thread::sleep_for(chrono::milliseconds(CONNECTION_TIMEOUT));
+    if (!is_connected) {
         enet_peer_reset(peer);
         peer = nullptr;
     }
@@ -90,6 +92,8 @@ EnetClient::~EnetClient() {
                     cerr << "Disconnection succeeded." << endl;
                     is_disconnected = true;
                     break;
+                default:
+                    break;
             }
         }
     }
@@ -97,12 +101,12 @@ EnetClient::~EnetClient() {
 }
 
 void EnetClient::do_accept() {
-    constexpr int TIME_OUT = 1000;
     ENetEvent event;
     while (!stop_flag) {
-        while (enet_host_service(client, &event, TIME_OUT) > 0) {
+        while (enet_host_service(client, &event, accept_timeout_) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
+                    is_connected = true;
                     cerr << "A new client connected from " << event.peer->address.host
                          << ':' << event.peer->address.port << endl;
                     cerr << "Connected to server ";
@@ -121,6 +125,7 @@ void EnetClient::do_accept() {
                 case ENET_EVENT_TYPE_DISCONNECT:
                     cerr << "disconnected." << endl;
                     /* Reset the peer's client information. */
+                    is_connected = false;
                     event.peer->data = nullptr;
                     peer = nullptr;
                     break;
@@ -132,30 +137,29 @@ void EnetClient::do_accept() {
 }
 
 bool EnetClient::sendText(const string &data) {
-    if (!peer) reconnect();
-    if (!peer) return false;
+    if (!is_connected) reconnect();
+    if (!is_connected) return false;
     constexpr int CHANNEL_ID = 0;
     ENetPacket* packet = enet_packet_create(
             data.c_str(),           // package
             data.size()+1,          // package size
             ENET_PACKET_FLAG_RELIABLE); // tcp
     int err = enet_peer_send(peer, CHANNEL_ID, packet);
-    enet_host_flush(client);
     return err == 0;
 }
 
-bool EnetClient::sendData(const vector<int> &data) {
-    if (!peer) reconnect();
-    if (!peer) return false;
+bool EnetClient::sendData(const vector<uint8_t> &data) {
+    if (!is_connected) reconnect();
+    if (!is_connected) return false;
     constexpr int CHANNEL_ID = 1;
     ENetPacket* packet = enet_packet_create(
             data.data(),                // package
-            data.size() * sizeof(int),  // package size
-            ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT); // udp
+            data.size(),                // package size
+            0); // udp
     int err = enet_peer_send(peer, CHANNEL_ID, packet);
-    enet_host_flush(client);
     return err == 0;
 }
+
 
 
 

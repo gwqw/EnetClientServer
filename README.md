@@ -1,5 +1,5 @@
 # EnetClientServer
-Client-server software using `enet` (http://enet.bespin.org/) library.
+C++ client-server wrapper-classes on `enet` (http://enet.bespin.org/) library.
 
 ## EnetServer
 
@@ -23,9 +23,9 @@ Command line:
 
 By default client transmits text data by reliable channel and binary data by unreliable channel.
 
-```
+```sh
 s:<string_data>     # transmits string
 a[0],a[1],a[2],a[3] # transmits array of integer
 ```
 
-For exit you can push `ctrl+D` (int unix system).
+For exit you can push `ctrl+D` (in `unix` systems).

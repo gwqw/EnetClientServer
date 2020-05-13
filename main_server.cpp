@@ -15,11 +15,8 @@ void print_str(const std::string& str) {
 }
 
 void print_data(const std::vector<std::uint8_t>& data) {
-    vector<int> tmp(data.size() / sizeof(int));
-    memcpy((void*)tmp.data(), (void*)data.data(), data.size());
-
-    for (auto n : tmp) {
-        cout << n << ", ";
+    for (auto n : data) {
+        cout << int(n) << ", ";
     }
     cout << '\n';
 }

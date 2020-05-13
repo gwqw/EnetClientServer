@@ -6,8 +6,8 @@
 
 using namespace std;
 
-vector<int> getVector(const std::string& str) {
-    vector<int> v;
+vector<uint8_t> getVector(const std::string& str) {
+    vector<uint8_t> v;
     size_t pos = str.find(',');
     size_t start = 0;
     while (start != string::npos) {
