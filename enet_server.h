@@ -7,12 +7,13 @@
 #ifndef ENET_TEST_ENET_SERVER_H
 #define ENET_TEST_ENET_SERVER_H
 
-#include <enet/enet.h>
 #include <functional>
 #include <string>
 #include <vector>
 #include <atomic>
 #include <thread>
+
+#include <enet/enet.h>
 
 #include "thread_pool.h"
 
