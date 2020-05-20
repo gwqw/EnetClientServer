@@ -12,7 +12,7 @@
 #include <atomic>
 #include <thread>
 
-#include <enet/enet.h>
+#include "enet/enet.h"
 
 /**
  * @brief C++ wrapper for enet-client from enet-library
@@ -26,6 +26,11 @@ class EnetClient {
         ~EnetLibWrapper();
     };
 public:
+  enum ChannelType {
+    RELIABLE_CHANNEL,    ///< reliable channel for text
+    UNRELIABLE_CHANNEL,  ///< unreliable channel for data
+  };
+public:
     EnetClient();
     EnetClient(const std::string& host_name, int port); ///< creates client and connects to host_name:port
     EnetClient(const EnetClient&) = delete;
@@ -37,6 +42,7 @@ public:
     bool isConnected() const {return is_connected;}       ///< checks connection state
     bool sendText(const std::string& data);               ///< send string using reliable channel, return true if data was sent
     bool sendData(const std::vector<uint8_t>& data);      ///< send raw data using unreliable channel
+    bool sendRawData(const uint8_t* ptr, std::size_t size, ChannelType channel_type = UNRELIABLE_CHANNEL);
 
     void setAcceptTimeOut(std::uint32_t timeout) { accept_timeout_ = timeout;}
 private:

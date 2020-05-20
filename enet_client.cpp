@@ -50,7 +50,11 @@ bool EnetClient::connect(const string &host_name, int port) {
     }
 
     constexpr int CONNECTION_TIMEOUT = 2000;
-    this_thread::sleep_for(chrono::milliseconds(CONNECTION_TIMEOUT));
+    int attempts = 0;
+    while (!is_connected || attempts < 10) {
+      this_thread::sleep_for(chrono::milliseconds(CONNECTION_TIMEOUT/ 10));
+      ++attempts;
+    }
     if (is_connected) {
         return true;
     } else {
@@ -107,8 +111,6 @@ void EnetClient::do_accept() {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
                     is_connected = true;
-                    cerr << "A new client connected from " << event.peer->address.host
-                         << ':' << event.peer->address.port << endl;
                     cerr << "Connected to server ";
                     print_ip(cerr, event.peer->address.host);
                     cerr << ':' << event.peer->address.port << endl;
@@ -136,29 +138,26 @@ void EnetClient::do_accept() {
     }
 }
 
+bool EnetClient::sendRawData(const uint8_t *ptr, std::size_t size, EnetClient::ChannelType channel_type) {
+  if (!is_connected) reconnect();
+  if (!is_connected) return false;
+  int flag = channel_type == RELIABLE_CHANNEL ? ENET_PACKET_FLAG_RELIABLE : 0;
+  ENetPacket* packet = enet_packet_create(
+          ptr,                // package
+          size,               // package size
+          flag);              // tcp or udp
+  int err = enet_peer_send(peer, channel_type, packet);
+  return err == 0;
+}
+
 bool EnetClient::sendText(const string &data) {
-    if (!is_connected) reconnect();
-    if (!is_connected) return false;
-    constexpr int CHANNEL_ID = 0;
-    ENetPacket* packet = enet_packet_create(
-            data.c_str(),           // package
-            data.size()+1,          // package size
-            ENET_PACKET_FLAG_RELIABLE); // tcp
-    int err = enet_peer_send(peer, CHANNEL_ID, packet);
-    return err == 0;
+  return sendRawData(reinterpret_cast<const uint8_t*>(data.data()), data.size(), RELIABLE_CHANNEL);
 }
 
 bool EnetClient::sendData(const vector<uint8_t> &data) {
-    if (!is_connected) reconnect();
-    if (!is_connected) return false;
-    constexpr int CHANNEL_ID = 1;
-    ENetPacket* packet = enet_packet_create(
-            data.data(),                // package
-            data.size(),                // package size
-            0); // udp
-    int err = enet_peer_send(peer, CHANNEL_ID, packet);
-    return err == 0;
+  return sendRawData(data.data(), data.size(), UNRELIABLE_CHANNEL);
 }
+
 
 
 

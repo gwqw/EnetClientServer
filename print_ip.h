@@ -9,6 +9,8 @@
 
 #include <iostream>
 
+/** @brief prints ip as integer number like "192.168.1.1" (split in bytes)
+ */
 void print_ip(std::ostream& out, int ip_address);
 
 #endif //ENET_TEST_PRINT_IP_H
