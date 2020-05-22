@@ -53,7 +53,7 @@ bool EnetClient::connect(const string &host_name, int port) {
 
     constexpr int CONNECTION_TIMEOUT = 2000;
     int attempts = 0;
-    while (!is_connected.load() || attempts < 10) {
+    while (!is_connected.load() && attempts < 10) {
       this_thread::sleep_for(chrono::milliseconds(CONNECTION_TIMEOUT/ 10));
       ++attempts;
     }

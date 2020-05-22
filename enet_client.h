@@ -50,9 +50,9 @@ private:
     ENetHost *client = nullptr;
     ENetAddress address;
     std::atomic<ENetPeer*> peer;
-	std::atomic<bool> is_connected;
+    std::atomic<bool> is_connected;
     std::uint32_t accept_timeout_ = 200;
-	std::atomic<bool> stop_flag;
+    std::atomic<bool> stop_flag;
     std::thread thr;
     static EnetLibWrapper enetLibWrapper;
 
