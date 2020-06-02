@@ -1,7 +1,5 @@
 #include "thread_pool.h"
 
-#include <utility>
-
 ThreadPool::ThreadPool(std::size_t threads_num)
 {
     for (std::size_t i = 0; i < threads_num; ++i) {

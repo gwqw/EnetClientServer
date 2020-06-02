@@ -3,50 +3,49 @@
 #include <stdexcept>
 #include <iostream>
 #include <utility>
+#include <thread>
 
 #include "print_ip.h"
 
 using namespace std;
 
-EnetServer::EnetLibWrapper EnetServer::enetLibWrapper;
-
-EnetServer::EnetLibWrapper::EnetLibWrapper() {
-    if (enet_initialize() != 0) {
-        cerr << "enet_initialize is failed" << endl;
-        throw runtime_error("enet_initialize is failed");
-    }
-}
-
-EnetServer::EnetLibWrapper::~EnetLibWrapper() {
-    enet_deinitialize();
-}
-
-
-EnetServer::EnetServer(int port_num, std::size_t max_peer_number)
-    : EnetServer(port_num, max_peer_number, nullptr, nullptr)
-{
-}
-
 EnetServer::EnetServer(int port_num, std::size_t max_peer_number,
         TextCallbackFn text_func, DataCallbackFn data_func)
-    : text_func(move(text_func)), data_func(move(data_func)), string_thread_pool(1), data_thread_pool(1)
+    : EnetPeer(move(text_func), move(data_func))
 {
+    start_listen(port_num, max_peer_number);
+}
+
+bool EnetServer::start_listen(int port_num, std::size_t max_peer_number) {
+    if (is_started) return true;
     if (port_num <= 0) {
-        throw invalid_argument("Bad port number: " + to_string(port_num));
+        return false;
     }
     address.host = ENET_HOST_ANY;
     address.port = port_num;
     server = enet_host_create(&address, max_peer_number, 2, 0, 0);
     if (server == nullptr) {
-        throw runtime_error("Cannot create server");
+        return false;
     }
     thr = thread(&EnetServer::do_accept, this);
+    is_started = true;
+    return true;
 }
 
 EnetServer::~EnetServer() {
-    stop_flag = true;
-    thr.join();
-    enet_host_destroy(server);
+    stop();
+}
+
+void EnetServer::stop() {
+    if (is_started) {
+        disconnectAllPeers();
+        stop_flag = true;
+        if (thr.joinable()) {
+            thr.join();
+        }
+        enet_host_destroy(server);
+        is_started = false;
+    }
 }
 
 void EnetServer::do_accept() {
@@ -60,22 +59,22 @@ void EnetServer::do_accept() {
                     cerr << ':' << event.peer->address.port << endl;
                     /* Store any relevant client information here. */
                     //event.peer->data = "";
+                    {
+                        lock_guard<mutex> lk(mtx_);
+                        peers.insert(event.peer);
+                    }
                     break;
                 case ENET_EVENT_TYPE_RECEIVE:
 //                    cerr << "A packet of length " << event.packet->dataLength
 //                         << " was received on channel " << int(event.channelID) << endl;
                     if (event.channelID == RELIABLE_CHANNEL && text_func) {
                         string data(reinterpret_cast<char*>(event.packet->data), event.packet->dataLength);
-                        event.packet->data = nullptr;
-                        event.packet->dataLength = 0;
                         auto wrk_fnc = [this](string&& data){
                             text_func(data);
                         };
                         string_thread_pool.addTask(wrk_fnc, move(data));
                     } else if (event.channelID == UNRELIABLE_CHANNEL && data_func) {
                         vector<uint8_t> data(event.packet->data, event.packet->data + event.packet->dataLength);
-                        event.packet->data = nullptr;
-                        event.packet->dataLength = 0;
                         auto wrk_fnc = [this](vector<uint8_t>&& data){
                             data_func(data);
                         };
@@ -86,6 +85,10 @@ void EnetServer::do_accept() {
                     break;
                 case ENET_EVENT_TYPE_DISCONNECT:
                     cerr << "disconnected." << endl;
+                    {
+                        lock_guard<mutex> lk(mtx_);
+                        peers.erase(event.peer);
+                    }
                     /* Reset the peer's client information. */
                     event.peer->data = nullptr;
                     break;
@@ -96,4 +99,20 @@ void EnetServer::do_accept() {
     }
 }
 
+void EnetServer::disconnectAllPeers() {
+    //enet_impl->server->peers
+    lock_guard<mutex> lk(mtx_);
+    for (const auto peer : peers) {
+        enet_peer_disconnect(peer, 0);
+    }
+}
 
+bool EnetServer::sendRawData(const uint8_t *ptr, std::size_t size, ChannelType channel_type) {
+    int flag = channel_type == RELIABLE_CHANNEL ? ENET_PACKET_FLAG_RELIABLE : 0;
+    ENetPacket* packet = enet_packet_create(
+            ptr,                // package
+            size,               // package size
+            flag);              // tcp or udp
+    enet_host_broadcast(server, channel_type, packet);
+    return true;
+}

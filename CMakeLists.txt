@@ -5,10 +5,14 @@ set(CMAKE_CXX_STANDARD 11)
 
 find_package(Threads REQUIRED)
 
-set(COMMON_SRC print_ip.cpp print_ip.h)
+set(COMMON_SRC
+        print_ip.cpp print_ip.h
+        enet_peer.cpp enet_peer.h
+        thread_pool.cpp thread_pool.h
+)
+
 set(ENET_SERVER_SRC main_server.cpp 
     enet_server.cpp enet_server.h
-    thread_pool.cpp thread_pool.h
     ${COMMON_SRC})
 set(ENET_CLIENT_SRC main_client.cpp
     enet_client.cpp enet_client.h

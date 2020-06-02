@@ -9,22 +9,9 @@
 
 using namespace std;
 
-EnetClient::EnetLibWrapper EnetClient::enetLibWrapper;
-
-EnetClient::EnetLibWrapper::EnetLibWrapper() {
-    if (enet_initialize() != 0) {
-        cerr << "enet_initialize is failed" << endl;
-        throw runtime_error("enet_initialize is failed");
-    }
-}
-
-EnetClient::EnetLibWrapper::~EnetLibWrapper() {
-    enet_deinitialize();
-}
-
-
-EnetClient::EnetClient()
-	: peer(nullptr), is_connected(false), stop_flag(false)
+EnetClient::EnetClient(TextCallbackFn text_func, DataCallbackFn data_func)
+    : EnetPeer(move(text_func), move(data_func)),
+	peer(nullptr), is_connected(false)
 {
     client = enet_host_create(nullptr, 1, 2, 0, 0);
     if (client == nullptr) {
@@ -33,8 +20,9 @@ EnetClient::EnetClient()
     thr = thread(&EnetClient::do_accept, this);
 }
 
-EnetClient::EnetClient(const std::string& host_name, int port)
-    : EnetClient()
+EnetClient::EnetClient(const std::string& host_name, int port,
+                       TextCallbackFn text_func, DataCallbackFn data_func)
+    : EnetClient(move(text_func), move(data_func))
 {
     connect(host_name, port);
 }
@@ -82,7 +70,9 @@ void EnetClient::reconnect() {
 
 EnetClient::~EnetClient() {
     stop_flag.store(true);
-    thr.join();
+    if (thr.joinable()) {
+        thr.join();
+    }
     if (peer.load()) {
         enet_peer_disconnect(peer, 0); // gently disconnection
         ENetEvent event;
@@ -120,9 +110,22 @@ void EnetClient::do_accept() {
                     //event.peer->data = "";
                     break;
                 case ENET_EVENT_TYPE_RECEIVE:
-                    cerr << "A packet of length " << event.packet->dataLength
-                         << " was received from " << event.peer->data
-                         << " on channel " << int(event.channelID) << endl;
+//        cerr << "A packet of length " << event.packet->dataLength
+//             << " was received on channel " << int(event.channelID) << endl;
+                    if (event.channelID == RELIABLE_CHANNEL && text_func) {
+                        string data(reinterpret_cast<char*>(event.packet->data), event.packet->dataLength);
+                        auto wrk_fnc = [this](string&& data) {
+                            text_func(data);
+                        };
+                        string_thread_pool.addTask(wrk_fnc, move(data));
+                    }
+                    else if (event.channelID == UNRELIABLE_CHANNEL && data_func) {
+                        std::vector<uint8_t> data(event.packet->data, event.packet->data + event.packet->dataLength);
+                        auto wrk_fnc = [this](std::vector<uint8_t> data) {
+                            data_func(data);
+                        };
+                        data_thread_pool.addTask(wrk_fnc, move(data));
+                    }
                     /* Clean up the packet now that we're done using it. */
                     enet_packet_destroy(event.packet);
                     break;
@@ -140,7 +143,7 @@ void EnetClient::do_accept() {
     }
 }
 
-bool EnetClient::sendRawData(const uint8_t *ptr, std::size_t size, EnetClient::ChannelType channel_type) {
+bool EnetClient::sendRawData(const uint8_t *ptr, std::size_t size, ChannelType channel_type) {
   if (!is_connected.load()) reconnect();
   if (!is_connected.load()) return false;
   int flag = channel_type == RELIABLE_CHANNEL ? ENET_PACKET_FLAG_RELIABLE : 0;
@@ -150,14 +153,6 @@ bool EnetClient::sendRawData(const uint8_t *ptr, std::size_t size, EnetClient::C
           flag);              // tcp or udp
   int err = enet_peer_send(peer, channel_type, packet);
   return err == 0;
-}
-
-bool EnetClient::sendText(const string &data) {
-  return sendRawData(reinterpret_cast<const uint8_t*>(data.data()), data.size(), RELIABLE_CHANNEL);
-}
-
-bool EnetClient::sendData(const vector<uint8_t> &data) {
-  return sendRawData(data.data(), data.size(), UNRELIABLE_CHANNEL);
 }
 
 
